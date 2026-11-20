@@ -1,0 +1,16 @@
+services:
+  defensive-api:
+    build:
+      context: .
+    ports:
+      - "127.0.0.1:8081:8080"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    cpus: 0.50
+    mem_limit: 256m
+    pids_limit: 128

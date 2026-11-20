@@ -1,0 +1,13 @@
+.git
+**/.git
+**/.vs
+**/.DS_Store
+**/bin
+**/obj
+**/publish
+**/.env
+**/.env.*
+**/*.user
+**/*.suo
+**/*.pfx
+**/*.key
