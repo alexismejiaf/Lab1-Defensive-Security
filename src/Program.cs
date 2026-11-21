@@ -1,8 +1,33 @@
+using System.Threading.RateLimiting;
+
+const string ApiRateLimitPolicy = "api";
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 builder.Services.AddHealthChecks();
 builder.Services.AddProblemDetails();
+
+var permitLimit = builder.Configuration.GetValue("RateLimit:PermitLimit", 5);
+var windowSeconds = builder.Configuration.GetValue("RateLimit:WindowSeconds", 10);
+
+if (permitLimit < 1 || windowSeconds < 1)
+{
+    throw new InvalidOperationException("RateLimit:PermitLimit and RateLimit:WindowSeconds must be positive integers.");
+}
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy(ApiRateLimitPolicy, context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = permitLimit,
+            Window = TimeSpan.FromSeconds(windowSeconds),
+            QueueLimit = 0
+        }));
+});
 
 var app = builder.Build();
 
@@ -19,7 +44,11 @@ app.Use(async (context, next) =>
     await next(context);
 });
 
-app.MapGet("/", () => TypedResults.Ok(new { service = "defensive-security-api" }));
+app.UseRouting();
+app.UseRateLimiter();
+
+app.MapGet("/", () => TypedResults.Ok(new { service = "defensive-security-api" }))
+    .RequireRateLimiting(ApiRateLimitPolicy);
 app.MapHealthChecks("/healthz");
 
 app.Run();
