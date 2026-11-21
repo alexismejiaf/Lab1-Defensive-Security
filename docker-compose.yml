@@ -1,9 +1,32 @@
 services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.5
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:?Set KC_ADMIN_PASSWORD in .env}
+      KC_HOSTNAME: http://localhost:8080
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      DOCUMENTS_CLIENT_SECRET: ${DOCUMENTS_CLIENT_SECRET:?Set DOCUMENTS_CLIENT_SECRET in .env}
+      ALICE_PASSWORD: ${ALICE_PASSWORD:?Set ALICE_PASSWORD in .env}
+      BOB_PASSWORD: ${BOB_PASSWORD:?Set BOB_PASSWORD in .env}
+    volumes:
+      - ./keycloak/lab-realm.json:/opt/keycloak/data/import/lab-realm.json:ro
+    ports:
+      - "127.0.0.1:8080:8080"
+
   defensive-api:
     build:
       context: .
     ports:
       - "127.0.0.1:8081:8080"
+    environment:
+      Authentication__MetadataAddress: "http://keycloak:8080/realms/lab/.well-known/openid-configuration"
+      Authentication__Issuer: "http://localhost:8080/realms/lab"
+      Authentication__Audience: "documents-api"
+      Authentication__RequireHttpsMetadata: "false"
+    depends_on:
+      - keycloak
     read_only: true
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=16m,mode=1777
