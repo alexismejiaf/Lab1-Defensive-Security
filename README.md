@@ -80,6 +80,3 @@ TOKEN=$(curl -s -X POST http://localhost:8080/realms/lab/protocol/openid-connect
   -d scope=documents.read | jq -r .access_token)
 curl -i -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8081/api/v1/documents/secure/1
 ```
-
-> Solo para laboratorio: Keycloak en modo `start-dev`, HTTP sin TLS y
-> `grant_type=password` (un cliente real usaría authorization code + PKCE).

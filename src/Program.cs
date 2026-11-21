@@ -1,9 +1,8 @@
 using System.Threading.RateLimiting;
-
-const string ApiRateLimitPolicy = "api";
-
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+
+const string ApiRateLimitPolicy = "api";
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -73,11 +72,11 @@ app.Use(async (context, next) =>
     await next(context);
 });
 
-app.UseAuthentication();
-app.UseAuthorization();
-
 app.UseRouting();
 app.UseRateLimiter();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapGet("/", () => TypedResults.Ok(new { service = "defensive-security-api" }))
     .RequireRateLimiting(ApiRateLimitPolicy);

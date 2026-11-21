@@ -21,9 +21,8 @@ services:
     ports:
       - "127.0.0.1:8081:8080"
     environment:
-      - RateLimit__PermitLimit
-      - RateLimit__WindowSeconds
-    environment:
+      RateLimit__PermitLimit: ${RateLimit__PermitLimit:-10}
+      RateLimit__WindowSeconds: ${RateLimit__WindowSeconds:-60}
       Authentication__MetadataAddress: "http://keycloak:8080/realms/lab/.well-known/openid-configuration"
       Authentication__Issuer: "http://localhost:8080/realms/lab"
       Authentication__Audience: "documents-api"
