@@ -1,3 +1,7 @@
+using System.Threading.RateLimiting;
+
+const string ApiRateLimitPolicy = "api";
+
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 
@@ -32,6 +36,27 @@ builder.Services.AddAuthorizationBuilder()
         .RequireAuthenticatedUser()
         .RequireAssertion(ctx => HasScope(ctx.User, "documents.read")));
 
+var permitLimit = builder.Configuration.GetValue("RateLimit:PermitLimit", 5);
+var windowSeconds = builder.Configuration.GetValue("RateLimit:WindowSeconds", 10);
+
+if (permitLimit < 1 || windowSeconds < 1)
+{
+    throw new InvalidOperationException("RateLimit:PermitLimit and RateLimit:WindowSeconds must be positive integers.");
+}
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy(ApiRateLimitPolicy, context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = permitLimit,
+            Window = TimeSpan.FromSeconds(windowSeconds),
+            QueueLimit = 0
+        }));
+});
+
 var app = builder.Build();
 
 app.UseExceptionHandler();
@@ -51,7 +76,11 @@ app.Use(async (context, next) =>
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/", () => TypedResults.Ok(new { service = "defensive-security-api" }));
+app.UseRouting();
+app.UseRateLimiter();
+
+app.MapGet("/", () => TypedResults.Ok(new { service = "defensive-security-api" }))
+    .RequireRateLimiting(ApiRateLimitPolicy);
 app.MapHealthChecks("/healthz");
 app.MapControllers();
 
