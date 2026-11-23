@@ -5,28 +5,38 @@ services:
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:?Set KC_ADMIN_PASSWORD in .env}
-      KC_HOSTNAME: http://localhost:8080
+      KC_HOSTNAME: https://localhost:8443
       KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
-      DOCUMENTS_CLIENT_SECRET: ${DOCUMENTS_CLIENT_SECRET:?Set DOCUMENTS_CLIENT_SECRET in .env}
+      KC_HTTP_ENABLED: "false"
+      KC_HTTPS_CERTIFICATE_FILE: /opt/keycloak/conf/server.crt.pem
+      KC_HTTPS_CERTIFICATE_KEY_FILE: /opt/keycloak/conf/server.key.pem
       ALICE_PASSWORD: ${ALICE_PASSWORD:?Set ALICE_PASSWORD in .env}
       BOB_PASSWORD: ${BOB_PASSWORD:?Set BOB_PASSWORD in .env}
     volumes:
       - ./keycloak/lab-realm.json:/opt/keycloak/data/import/lab-realm.json:ro
+      - ./certs/keycloak.crt:/opt/keycloak/conf/server.crt.pem:ro
+      - ./certs/keycloak.key:/opt/keycloak/conf/server.key.pem:ro
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:8443:8443"
 
   defensive-api:
     build:
       context: .
     ports:
-      - "127.0.0.1:8081:8080"
+      - "127.0.0.1:8444:8443"
     environment:
       RateLimit__PermitLimit: ${RateLimit__PermitLimit:-10}
       RateLimit__WindowSeconds: ${RateLimit__WindowSeconds:-60}
-      Authentication__MetadataAddress: "http://keycloak:8080/realms/lab/.well-known/openid-configuration"
-      Authentication__Issuer: "http://localhost:8080/realms/lab"
+      Authentication__MetadataAddress: "https://keycloak:8443/realms/lab/.well-known/openid-configuration"
+      Authentication__Issuer: "https://localhost:8443/realms/lab"
       Authentication__Audience: "documents-api"
-      Authentication__RequireHttpsMetadata: "false"
+      Authentication__CaCertificatePath: /certs/ca.crt
+      Kestrel__Certificates__Default__Path: /certs/api.crt
+      Kestrel__Certificates__Default__KeyPath: /certs/api.key
+    volumes:
+      - ./certs/ca.crt:/certs/ca.crt:ro
+      - ./certs/api.crt:/certs/api.crt:ro
+      - ./certs/api.key:/certs/api.key:ro
     depends_on:
       - keycloak
     read_only: true

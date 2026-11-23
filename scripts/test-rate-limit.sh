@@ -1,9 +1,12 @@
 #!/bin/sh
 
+script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+
 test_rate_limit() {
     attempts=${1:-10}
     expected_limit=${RateLimit__PermitLimit:-5}
-    api_url=${2:-http://127.0.0.1:8081/}
+    api_url=${2:-https://localhost:8444/}
+    ca_cert=${CA_CERT:-$script_dir/../certs/ca.crt}
 
     if ! [ "$attempts" -gt 0 ] 2>/dev/null; then
         printf 'El número de intentos debe ser un entero positivo.\n' >&2
@@ -12,6 +15,11 @@ test_rate_limit() {
 
     if ! [ "$expected_limit" -gt 0 ] 2>/dev/null || [ "$expected_limit" -gt 2147483647 ]; then
         printf 'RateLimit__PermitLimit debe ser un entero entre 1 y 2147483647.\n' >&2
+        return 2
+    fi
+
+    if [ ! -f "$ca_cert" ]; then
+        printf 'No se encontró la CA local en %s. Ejecuta ./scripts/gen-certs.sh primero.\n' "$ca_cert" >&2
         return 2
     fi
 
@@ -24,7 +32,7 @@ test_rate_limit() {
             expected_status=429
         fi
 
-        if ! status=$(curl --silent --show-error --max-time 5 \
+        if ! status=$(curl --silent --show-error --max-time 5 --cacert "$ca_cert" \
             --output /dev/null --write-out '%{http_code}' -- "$api_url"); then
             printf 'Solicitud %s → error al completar la solicitud.\n' "$request" >&2
             result=1

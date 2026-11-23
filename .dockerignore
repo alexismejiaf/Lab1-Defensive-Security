@@ -11,3 +11,4 @@
 **/*.suo
 **/*.pfx
 **/*.key
+certs/
