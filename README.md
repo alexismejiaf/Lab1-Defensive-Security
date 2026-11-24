@@ -101,6 +101,23 @@ done
 
 Se esperan `200` para `/healthz` y `/` si hay cuota disponible, `401` para el documento sin token y `404` para la ruta inexistente. Cada respuesta debe incluir `X-Content-Type-Options: nosniff` y omitir `Server` y `X-Powered-By`.
 
+**Evidencia en macOS.** El filtro del script también muestra `Server` y `X-Powered-By` si aparecen. Ambas cabeceras estuvieron ausentes en las cuatro respuestas.
+
+```text
+=== /healthz ===
+HTTP/2 200
+x-content-type-options: nosniff
+=== / ===
+HTTP/2 200
+x-content-type-options: nosniff
+=== /api/v1/documents/secure/1 ===
+HTTP/2 401
+x-content-type-options: nosniff
+=== /ruta-inexistente ===
+HTTP/2 404
+x-content-type-options: nosniff
+```
+
 ## Prueba manual del límite
 
 Envía diez solicitudes seguidas a `GET /`. Con la configuración del arranque, las primeras cinco deben devolver `200` y las siguientes cinco, `429`.
@@ -118,6 +135,21 @@ Deja pasar una ventana completa después de la prueba manual. El script comprueb
 ```bash
 sleep 11
 RateLimit__PermitLimit=5 sh scripts/test-rate-limit.sh 10
+```
+
+**Evidencia en macOS.** En una instancia de prueba configurada con 5 solicitudes por IP cada 10 segundos, la API aceptó las primeras cinco y rechazó el exceso con `429 Too Many Requests`.
+
+```text
+Solicitud 1 → HTTP 200
+Solicitud 2 → HTTP 200
+Solicitud 3 → HTTP 200
+Solicitud 4 → HTTP 200
+Solicitud 5 → HTTP 200
+Solicitud 6 → HTTP 429
+Solicitud 7 → HTTP 429
+Solicitud 8 → HTTP 429
+Solicitud 9 → HTTP 429
+Solicitud 10 → HTTP 429
 ```
 
 ## Cambio del límite
@@ -160,6 +192,12 @@ Cuando termine la prueba anterior, ejecuta el segundo script con los servicios t
 ```
 
 Se esperan cinco líneas `PASS`. El mismo token debe recibir `200` en la API con la configuración correcta y `401` en las variantes con otro emisor u otra audiencia. La cabecera `WWW-Authenticate` indica la causa de cada rechazo.
+
+## Reporte ejecutivo
+
+El hardening reduce la información que la API expone sobre su tecnología. Omitir `Server` y `X-Powered-By` dificulta identificar la plataforma a partir de las respuestas. `X-Content-Type-Options: nosniff` indica a los navegadores que respeten el tipo de contenido declarado. En la prueba, estas medidas se observaron tanto en respuestas exitosas como en respuestas de error. [Guía de cabeceras HTTP de OWASP](https://cheatsheetseries.owasp.org/cheatsheets/HTTP_Headers_Cheat_Sheet.html)
+
+El límite por IP en `GET /` protege el rendimiento al rechazar las solicitudes que exceden la cuota antes de ejecutar el endpoint. Como el laboratorio no usa una cola de espera, el exceso recibe `429` de inmediato. Esto reduce el trabajo que una ráfaga le impone a la aplicación y ayuda a mantener la disponibilidad. La prueba verificó el rechazo a partir de la sexta solicitud. El efecto sobre latencia, CPU y memoria queda por medir bajo carga. [RFC 6585, código 429](https://www.rfc-editor.org/rfc/rfc6585#section-4)
 
 ## Detención del servicio
 
