@@ -80,7 +80,26 @@ docker compose ps
 curl -fsS -D - --cacert certs/ca.crt https://localhost:8444/healthz
 ```
 
-La última llamada debe devolver `200` y `Healthy`. En las cabeceras debe aparecer `X-Content-Type-Options: nosniff` y deben estar ausentes `Server` y `X-Powered-By`. Las pruebas usan la CA local para validar los certificados.
+La última llamada debe devolver `200` y `Healthy`. Las pruebas usan la CA local para validar los certificados.
+
+### Comprobación de cabeceras
+
+Con la API en ejecución, usa el script desde la raíz del repositorio.
+
+```bash
+./scripts/test-headers.sh
+```
+
+También puedes ejecutar la comprobación directamente en la terminal.
+
+```bash
+for route in /healthz / /api/v1/documents/secure/1 /ruta-inexistente; do
+  echo "=== $route ==="
+  /usr/bin/curl -sS -o /dev/null -D - --cacert certs/ca.crt "https://localhost:8444$route" | /usr/bin/grep -iE '^(HTTP/|server:|x-powered-by:|x-content-type-options:)'
+done
+```
+
+Se esperan `200` para `/healthz` y `/` si hay cuota disponible, `401` para el documento sin token y `404` para la ruta inexistente. Cada respuesta debe incluir `X-Content-Type-Options: nosniff` y omitir `Server` y `X-Powered-By`.
 
 ## Prueba manual del límite
 
