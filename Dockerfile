@@ -11,8 +11,8 @@ RUN dotnet publish src/DefensiveSecurity.Api.csproj -c Release --no-restore -o /
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS runtime
 WORKDIR /app
-ENV ASPNETCORE_HTTP_PORTS=8080
-EXPOSE 8080
+ENV ASPNETCORE_URLS="https://+:8443;http://127.0.0.1:8080"
+EXPOSE 8443
 
 COPY --from=build /app/publish ./
 USER $APP_UID
